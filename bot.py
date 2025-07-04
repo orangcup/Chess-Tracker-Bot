@@ -7,81 +7,75 @@ import requests
 import chess.pgn
 import io
 
+from chessdotcom import Client, ChessDotComClient, get_player_stats, get_player_game_archives
+
 load_dotenv()
 
 intents = discord.Intents.default() # make a default intents object
 intents.message_content = True # Enable message content intent
+discord_bot = commands.Bot(command_prefix='!', intents=intents) # lets me use / commands and stuff like !commands 
 
-bot = discord.Client(intents=intents) # make the bot client
+headers = {
+    'User-Agent' : 'Game Tracker Bot'
+}
+client = ChessDotComClient(user_agent = "My Python Application... (username: ian175; contact: iansun768@gmail.com)") # client that interacts with the api
 
-username = ""
+username = "ian175"
 
-@bot.event
+@discord_bot.event
 async def on_ready(): #when bot is loaded
-    print(f'Logged in as {bot.user}') #it should say so in console
+    await discord_bot.tree.sync() #lets /commands work
+    print(f'Logged in as {discord_bot.user}') #it should say so in console
 
-@bot.event
+@discord_bot.tree.command(name='ping', description='Replies with Pong!') # slash command
+async def ping(interaction: discord.Interaction):
+    await interaction.response.send_message(f'🏓Pong!\n```Latency: {discord_bot.latency * 1000:.0f} ms```')
+@discord_bot.event
 async def on_message(message):
-    if message.author == bot.user:
+    if message.author == discord_bot.user:
         return
     if message.content.startswith('!hello'):
         await message.channel.send('Hello! I am your Chess Tracker Bot!')
-    if bot.user in message.mentions: # if the bot is mentioned...
+    if discord_bot.user in message.mentions: # if the bot is mentioned...
         pass #will update
     if message.content.startswith("!update_username"):
         #update the username for the bot to track
         
         pass # i should have a variable here that changes/stores username
     if message.content.startswith("!latest_game"):
-        await message.channel.send(fetch_latest_game("ian175"))
+        await message.channel.send(parse_game(get_latest_game("ian175")))
         
 
-def fetch_latest_game(username):
-    archive_url = "https://api.chess.com/pub/player/"+username+"/games/archives" #grabs the api of (username)
-    data = requests.get(archive_url).json() #save the data from the api into a variable
-    #saving as a json means that its saved as a dictionary
-    #since the data is split into months so we take the latest month
-    latest_month = data["archives"][-1]
+def get_latest_game(username):
+    response = client.get_player_game_archives(username)
+    archive_url = response.json['archives'][-1] #latest month archive
+    games = requests.get(archive_url, headers=headers).json() #gaems from latest month
+    game_data = games['games'][-1] #latest game 
+    return game_data
 
-    latest_month_data = requests.get(latest_month).json() #samethign with data but with the month this time
-    games = latest_month_data["games"]
-    if not games: #if i havent played games that month...
-        return None #return nothing
-
-    latest_game = games[-1] #take the last game played
-
-    parse_game(latest_game) #parse the game
-
-def parse_game(stuff): #taking the data and converting it to something readable
-    game_stream = io.StringIO(stuff.get("pgn","")) #we got a string but chess.pgn library wants it as a sort of file
-    game = chess.pgn.read_game(game_stream)
-    if game is None:
-        return None  # if game doesnt exist... return nothing
-
-    white_player = game.headers.get("White")
-    black_player = game.headers.get("Black")
-    opening = game.headers.get("ECOUrl")
-    result = game.headers.get("Result")
-
-    if str(black_player).lower() == username:
-        colour = "black"
-        player = black_player
-        opponent = white_player
-    else:
-        colour = "white"
-        player = white_player
-        opponent = black_player
-
-    return {
-        "colour": colour,
-        "player": player,
-        "opponent": opponent,
-        "opening": opening,
-        "result": result
-    }
+def parse_game(game_data): #taking the data and converting it to something readable
+    pgn_str = game_data['pgn']
+    pgn_list = pgn_str.split('\n')
+    pgn_list = [pgn for pgn in pgn_list if pgn.strip() != ""]
+    game_dict = {}
+    for i in range(0,21):
+        entry = pgn_list[i].replace('[',"").replace(']',"").replace('"',"")
+        key, value = entry.split(" ",1)
+        game_dict[key] = value
+    
+    game_dict['url'] = game_data['url']
+    game_dict['time_comtrol'] = game_data['time_control']
+    game_dict['rated'] = game_data['rated']
+    game_dict['initial_setup'] = game_data['initial_setup']
+    game_dict['rules'] = game_data['rules']
+    game_dict['white'] = game_data['white']
+    game_dict['black'] = game_data['black']
+    
+    return game_dict
+    
 
 
-TOKEN = os.getenv('DISCORD_BOT_TOKEN')
-if not TOKEN:
+DISCORD_TOKEN = os.getenv('DISCORD_BOT_TOKEN')
+if not DISCORD_TOKEN:
     raise ValueError("No token provided. Please set the DISCORD_BOT_TOKEN environment variable")
-bot.run(TOKEN)
+discord_bot.run(DISCORD_TOKEN)
