@@ -18,7 +18,7 @@ discord_bot = commands.Bot(command_prefix='!', intents=intents) # lets me use / 
 headers = {
     'User-Agent' : 'Game Tracker Bot'
 }
-client = ChessDotComClient(user_agent = "My Python Application... (username: ian175; contact: iansun768@gmail.com)") # client that interacts with the api
+client = ChessDotComClient(user_agent = "My Python Application... ") # client that interacts with the api
 
 username = "ian175"
 
@@ -30,6 +30,29 @@ async def on_ready(): #when bot is loaded
 @discord_bot.tree.command(name='ping', description='Replies with Pong!') # slash command
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message(f'🏓Pong!\n```Latency: {discord_bot.latency * 1000:.0f} ms```')
+
+'''
+class View(discord.ui.View):
+    @discord.ui.button(label='Click Me!', row=0, style=discord.ButtonStyle.red)
+    async def first_button_callback(self, button, interaction):
+        await interaction.response.send_message('button clicked!')
+
+@discord_bot.tree.command(name='button1', description='display a button')
+async def myButton(interaction: discord.Interaction):
+    await interaction.response.send_message(view=View()) # this is a slash command that sends a message with a button
+'''
+
+class MyView(discord.ui.View): # Create a class called MyView that subclasses discord.ui.View
+    @discord.ui.button(label="Click me!", style=discord.ButtonStyle.primary, emoji="😎") 
+    async def button_callback(self, interaction, button):
+        await interaction.response.send_message("You clicked the button!") # Send a message when the button is clicked
+
+@discord_bot.tree.command()
+async def button(ctx):
+    await ctx.response.send_message("This is a button!", view=MyView())
+
+
+
 @discord_bot.event
 async def on_message(message):
     if message.author == discord_bot.user:
