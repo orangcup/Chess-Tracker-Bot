@@ -49,9 +49,26 @@ async def on_ready(): #when bot is loaded
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message(f'🏓Pong!\n```Latency: {discord_bot.latency * 1000:.0f} ms```')
 
-class MyView(discord.ui.View): # Create a class called MyView that subclasses discord.ui.View
+
+
+
+
+
+class Buttons(discord.ui.View): # Create a class called Buttons that subclasses discord.ui.View    
+    def __init__(self, *, timeout=60):
+        super().__init__(timeout=timeout)
+
+        self.add_item(discord.ui.Button(label="Analysis on Lichess", style=discord.ButtonStyle.url, url="https://lichess.org/analysis"))
+        '''
+        data = load_users()
+        for channel_id, info in data.items():
+            username = info['username']
+        #channel = discord_bot.get_channel(int(channel_id))        
+        self.add_item(discord.ui.Button(label="Analyze on Lichess", style=discord.ButtonStyle.url, url=parse_game(get_latest_game(username))['pgn_url']))
+        '''
+
     @discord.ui.button(label="Latest Game", style=discord.ButtonStyle.primary) 
-    async def Latest_Game(self, interaction, button):
+    async def latest_Game(self, interaction, button):
         data = load_users()
         channel_id = str(interaction.channel.id)
 
@@ -60,10 +77,17 @@ class MyView(discord.ui.View): # Create a class called MyView that subclasses di
             return
         username = data[channel_id]['username']
         await interaction.response.send_message(str_game_results(parse_game(get_latest_game(username)))) # Send a message when the button is clicked
+        
+
+
+
+
+
+
 
 @discord_bot.tree.command()
-async def button(ctx):
-    await ctx.response.send_message("Click here to check out your latest game!", view=MyView())
+async def latest_game(ctx):
+    await ctx.response.send_message("Click here to check out your latest game!", view=Buttons())
 
 @discord_bot.command(name='update_user', description="Updates the username of the chess.com account you're tracking")
 async def update_user(ctx, username: str):
@@ -95,6 +119,7 @@ async def on_message(message):
 
         await message.channel.send(str_game_results(parse_game(get_latest_game(username))))
     await discord_bot.process_commands(message)
+    
 
 def get_latest_game(username):
     response = client.get_player_game_archives(username)
@@ -120,18 +145,32 @@ def parse_game(game_data): #taking the data and converting it to something reada
     game_dict['rules'] = game_data['rules']
     game_dict['white'] = game_data['white']
     game_dict['black'] = game_data['black']
-    
+
+    raw_pgn = pgn_list[21] #i gotta make the string readable for pasting into urls
+    raw_pgn = raw_pgn.split(" ") # raw pgn is still here incase i wanna work on it later
+    moves = []
+    for i in range(len(raw_pgn)):
+        if i%4 == 1:
+            moves.append(raw_pgn[i])
+    game_dict['moves'] = moves
+
+    pgn_url = "https://lichess.org/analysis/pgn/" #url for analysis
+    for i in range(len(moves)-1):
+        pgn_url += moves[i] + "_"
+    pgn_url += moves[-1] #literally add the moves seperated by _ into the url to put moves into analysis board
+    game_dict['pgn_url'] = pgn_url
+
     return game_dict
 
 def str_game_results(dict):
-    str = dict["White"] + " " + dict["Result"] + " " + dict["Black"] + "\n" + dict["Termination"] + "\n" + dict["ECOUrl"]
+    str = dict["White"] + " " + dict["Result"] + " " + dict["Black"] + "\n" + dict["Termination"] + "\n" + dict["ECOUrl"] + "\nFor analysis, click on this link: " + dict["pgn_url"]
     return str
 
 
 #i want this bot to check the chess.com api every minute for new games
 @tasks.loop(minutes=1)
 async def check_for_game():
-    print("hi")
+    print("1 minute has passed... ゴゴ")
     data = load_users()
     for channel_id, info in data.items():
         username = info['username']
@@ -146,7 +185,7 @@ async def check_for_game():
         if new_game_url != last_url:
             channel = discord_bot.get_channel(int(channel_id))
             if channel:
-                await channel.send("Click here to check out your latest game!", view=MyView())
+                await channel.send("Click here to check out your latest game!", view=Buttons())
                 data[channel_id]['last_game_url'] = new_game_url
                 save_data(data)
 
