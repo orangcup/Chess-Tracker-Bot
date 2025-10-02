@@ -16,3 +16,6 @@ After each game, the bot will send out a message asking you if you would like to
 The button will stop interacting after a short period.
 
 Example video: https://youtu.be/UBfCJGX8Zjo
+
+
+Finally, I confirm that some parts of the code has been written with the help/guidance of AI. Specifically, the code for checking the API each minute, the code for searching and saving data from the API and the code for slash commands in discord.
