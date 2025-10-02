@@ -14,3 +14,5 @@ Type !latest_game to look at your latest chess game
 After each game, the bot will send out a message asking you if you would like to check out your latest game.
 
 The button will stop interacting after a short period.
+
+Example video: https://youtu.be/UBfCJGX8Zjo
